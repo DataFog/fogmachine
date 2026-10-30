@@ -19,6 +19,7 @@ class AdoptionTests(unittest.TestCase):
             files = adopt.configuration(profile, image)
             config = json.loads(files[".devcontainer/devcontainer.json"])
             self.assertEqual(config["image"], image)
-            self.assertEqual(config["postCreateCommand"], "./dev setup")
+            self.assertTrue(config["postCreateCommand"].endswith(" && ./dev setup"))
+            self.assertIn("sudo chown -R ubuntu:ubuntu", config["postCreateCommand"])
             self.assertTrue(config["mounts"])
         self.assertEqual(adopt.configuration("core", image)[".cursor/Dockerfile"], "FROM " + image + "\n")

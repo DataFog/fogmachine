@@ -18,7 +18,7 @@ def configuration(profile, image):
               "containerEnv": {"FOGMACHINE_IMAGE": image},
               "mounts": [{"source": "fogmachine-${devcontainerId}-" + directory.replace("/", "-"),
                           "target": "/workspace/" + directory, "type": "volume"} for directory in directories],
-              "postCreateCommand": "./dev setup"}
+              "postCreateCommand": "sudo chown -R ubuntu:ubuntu " + " ".join("/workspace/" + directory for directory in directories) + " && ./dev setup"}
     files = {".devcontainer/devcontainer.json": json.dumps(config, indent=2) + "\n",
              ".fogmachine.json": json.dumps({"profile": profile}, indent=2) + "\n",
              "dev": '#!/usr/bin/env bash\nset -euo pipefail\nif [[ ! -x /opt/fogmachine/dev ]]; then\n  echo "Open this checkout in its FogMachine devcontainer first." >&2\n  exit 1\nfi\nexec /opt/fogmachine/dev "$@"\n'}
