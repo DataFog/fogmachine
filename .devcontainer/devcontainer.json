@@ -1,0 +1,8 @@
+{
+  "name": "FogMachine development",
+  "build": {"context": "..", "dockerfile": "../Dockerfile"},
+  "remoteUser": "ubuntu",
+  "workspaceFolder": "/workspace",
+  "workspaceMount": "source=${localWorkspaceFolder},target=/workspace,type=bind",
+  "postCreateCommand": "python3 -m unittest discover -s tests"
+}

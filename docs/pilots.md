@@ -27,3 +27,14 @@ Consumer pilot branches are proposed independently; do not merge a placeholder
 image reference. Existing native release and supported-Python-version CI stay in place.
 Later adoption: FogVault browser requirements, ARM64 image qualification, local Core
 wheel/tarball consumer integration, and a combined checkout workspace.
+
+Generate a consumer config only after the image has qualified:
+
+```sh
+python3 scripts/adopt.py --profile core --repo /path/to/core --image ghcr.io/datafog/fogmachine@sha256:ACTUAL_DIGEST
+```
+
+The generator rejects tags and malformed digests. Review the generated changes in
+an isolated product branch and add its changelog entry before submitting a PR.
+It isolates dependency volumes for Dev Containers. Cursor's Core adapter uses the
+same image; its source/dependency isolation depends on the cloud workspace provider.
