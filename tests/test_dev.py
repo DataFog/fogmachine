@@ -19,6 +19,9 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(dev.commands("mcp", "setup"), [["uv", "sync", "--frozen", "--group", "dev", "--group", "ci"]])
         self.assertIn(["uv", "run", "--frozen", "pytest"], dev.commands("mcp", "check"))
 
+    def test_doctor_checks_python_module_entrypoint(self):
+        self.assertIn(["python3", "-m", "maturin", "--version"], dev.doctor_commands())
+
     def test_core_keeps_required_rust_checks(self):
         self.assertIn(["cargo", "test", "--workspace", "--all-features"], dev.commands("core", "check"))
 

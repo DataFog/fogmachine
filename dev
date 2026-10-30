@@ -57,6 +57,7 @@ def doctor_commands():
             ["bash", "-c", f"test \"$(uv --version | cut -d' ' -f2)\" = {PINS['uv']}"],
             ["bash", "-c", f"test \"$(maturin --version | cut -d' ' -f2)\" = {PINS['maturin']}"],
             ["bash", "-c", f"test \"$(wasm-bindgen --version | cut -d' ' -f2)\" = {PINS['wasm_bindgen']}"],
+            ["python3", "-m", "maturin", "--version"],
             ["node", "--input-type=module", "-e", "import {chromium} from '/opt/fogmachine/browser/node_modules/playwright/index.mjs'; const browser=await chromium.launch(); console.log(await browser.version()); await browser.close();"]]
 
 def main():

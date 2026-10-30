@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- Make maturin available through Python module invocation as required by Core builds.
+
 ### Changed
 
 - Use lowercase fogmachine branding in developer UI labels, documentation, and command messages.
