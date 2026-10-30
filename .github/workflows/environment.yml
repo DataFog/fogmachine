@@ -1,0 +1,86 @@
+name: Environment qualification
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  pilot:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test adapters
+        run: python3 -m unittest discover -s tests
+      - name: Read pilot commits
+        id: pins
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          pins = json.load(open('workspace/pilots.json'))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as output:
+              for profile, pilot in pins.items():
+                  print(f"{profile}_ref={pilot['ref']}", file=output)
+          PYTHON
+      - uses: actions/checkout@v4
+        with:
+          repository: DataFog/datafog-core
+          ref: ${{ steps.pins.outputs.core_ref }}
+          path: pilots/core
+      - uses: actions/checkout@v4
+        with:
+          repository: DataFog/datafog-mcp
+          ref: ${{ steps.pins.outputs.mcp_ref }}
+          path: pilots/mcp
+      - name: Build candidate image
+        run: docker build --progress=plain -t fogmachine:candidate .
+      - name: Qualify Core
+        id: core
+        continue-on-error: true
+        env:
+          FOGMACHINE_IMAGE: fogmachine:candidate
+        run: bash scripts/pilot.sh core "$GITHUB_WORKSPACE/pilots/core"
+      - name: Qualify MCP
+        id: mcp
+        continue-on-error: true
+        env:
+          FOGMACHINE_IMAGE: fogmachine:candidate
+        run: bash scripts/pilot.sh mcp "$GITHUB_WORKSPACE/pilots/mcp"
+      - name: Require both pilots
+        env:
+          CORE_OUTCOME: ${{ steps.core.outcome }}
+          MCP_OUTCOME: ${{ steps.mcp.outcome }}
+        run: test "$CORE_OUTCOME" = success && test "$MCP_OUTCOME" = success
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pilot-evidence
+          path: evidence/
+          if-no-files-found: warn
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Publish qualified image
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+        env:
+          IMAGE: ghcr.io/datafog/fogmachine
+        run: |
+          docker tag fogmachine:candidate "$IMAGE:sha-$GITHUB_SHA"
+          docker push "$IMAGE:sha-$GITHUB_SHA"
+          docker inspect --format '{{index .RepoDigests 0}}' "$IMAGE:sha-$GITHUB_SHA" | tee image-digest.txt
+          cat image-digest.txt >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main' && success()
+        with:
+          name: qualified-image
+          path: image-digest.txt

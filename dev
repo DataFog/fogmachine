@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+"""Shared pilot adapters. Run from a configured product checkout."""
+import argparse
+import datetime
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import tomllib
+
+HOME = Path(__file__).resolve().parent
+PINS = json.loads((HOME / "toolchains.json").read_text())
+
+def commands(profile, operation):
+    if operation == "setup":
+        return ([["npm", "ci", "--prefix", "bindings/node"],
+                 ["npm", "ci", "--prefix", "bindings/wasm"],
+                 ["cargo", "dfv", "build"]] if profile == "core" else
+                [["uv", "sync", "--frozen", "--group", "dev", "--group", "ci"]])
+    if profile == "core":
+        return [["cargo", "fmt", "--all", "--check"],
+                ["cargo", "clippy", "--workspace", "--all-targets", "--all-features", "--", "-D", "warnings"],
+                ["cargo", "test", "--workspace", "--all-features"],
+                ["cargo", "dfv", "check", "--json"],
+                ["cargo", "dfv", "parity", "--json"],
+                ["cargo", "dfv", "eval", "--json"],
+                ["cargo", "dfv", "smoke", "--json"],
+                ["cargo", "dfv", "parity", "--live", "--json"],
+                ["cargo", "dfv", "parity", "--workspace", "--json"]]
+    return [["uv", "run", "--frozen", *args] for args in
+            (["ruff", "check", "."], ["ruff", "format", "--check", "."],
+             ["mypy"], ["pyright"], ["pytest"])]
+
+def validate_repo(root, profile):
+    if profile == "core":
+        toolchain = tomllib.loads((root / "rust-toolchain.toml").read_text())["toolchain"]
+        if toolchain["channel"] != PINS["rust"]:
+            raise ValueError("Core Rust pin differs from FogMachine; select a compatible environment")
+        if int((root / ".nvmrc").read_text().strip()) != PINS["node_major"]:
+            raise ValueError("Core Node pin differs from FogMachine")
+        packages = tomllib.loads((root / "Cargo.lock").read_text())["package"]
+        versions = {p["version"] for p in packages if p["name"] == "wasm-bindgen"}
+        if versions != {PINS["wasm_bindgen"]}:
+            raise ValueError("Core wasm-bindgen pin differs from FogMachine")
+        browser = json.loads((root / "bindings/wasm/package.json").read_text())
+        if browser["devDependencies"]["playwright"] != PINS["playwright"]:
+            raise ValueError("Core Playwright pin differs from FogMachine")
+    elif (root / ".python-version").read_text().strip() != PINS["python"]:
+        raise ValueError("MCP Python pin differs from FogMachine")
+
+def doctor_commands():
+    # Assertions make a mismatch fail instead of merely displaying versions.
+    return [["python3", "-c", f"import sys; assert '.'.join(map(str,sys.version_info[:2])) == {PINS['python']!r}"],
+            ["bash", "-c", f"test \"$(rustc --version | cut -d' ' -f2)\" = {PINS['rust']}"],
+            ["node", "-e", f"if (+process.versions.node.split('.')[0] !== {PINS['node_major']}) process.exit(1)"],
+            ["bash", "-c", f"test \"$(uv --version | cut -d' ' -f2)\" = {PINS['uv']}"],
+            ["bash", "-c", f"test \"$(maturin --version | cut -d' ' -f2)\" = {PINS['maturin']}"],
+            ["bash", "-c", f"test \"$(wasm-bindgen --version | cut -d' ' -f2)\" = {PINS['wasm_bindgen']}"],
+            ["node", "--input-type=module", "-e", "import {chromium} from '/opt/fogmachine/browser/node_modules/playwright/index.mjs'; const browser=await chromium.launch(); console.log(await browser.version()); await browser.close();"]]
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("operation", choices=["doctor", "setup", "check"])
+    parser.add_argument("--profile", choices=["core", "mcp"])
+    parser.add_argument("--dry-run", action="store_true")
+    args = parser.parse_args()
+    root = Path.cwd()
+    try:
+        profile = args.profile or json.loads((root / ".fogmachine.json").read_text())["profile"]
+        if profile not in ("core", "mcp"):
+            raise ValueError(f"Unsupported profile: {profile}")
+        validate_repo(root, profile)
+    except (OSError, ValueError, KeyError) as error:
+        parser.exit(1, f"FogMachine configuration: {error}\n")
+    steps = doctor_commands() if args.operation == "doctor" else commands(profile, args.operation)
+    if args.dry_run:
+        print(json.dumps(steps, indent=2))
+        return 0
+    evidence = root / ".fogmachine-runs" / (datetime.datetime.now(datetime.timezone.utc).strftime("%Y%m%dT%H%M%S%fZ") + f"-{args.operation}")
+    evidence.mkdir(parents=True)
+    def git(*arguments):
+        return subprocess.check_output(["git", *arguments], cwd=root, text=True).strip()
+    report = {"profile": profile, "operation": args.operation, "source_sha": git("rev-parse", "HEAD"),
+              "source_diff": git("diff", "--binary", "HEAD"), "git_status": git("status", "--porcelain"),
+              "image": os.environ.get("FOGMACHINE_IMAGE", "unrecorded"), "requirements": PINS, "steps": []}
+    status = 0
+    try:
+        for index, command in enumerate(steps):
+            print("+ " + " ".join(command), flush=True)
+            with (evidence / f"{index}.log").open("w") as output:
+                result = subprocess.run(command, stdout=output, stderr=subprocess.STDOUT, cwd=root)
+            report["steps"].append({"command": command, "exit_code": result.returncode})
+            if result.returncode:
+                status = result.returncode
+                print((evidence / f"{index}.log").read_text(), file=sys.stderr)
+                break
+    except OSError as error:
+        report["error"] = str(error)
+        status = 1
+    report["pass"] = status == 0
+    (evidence / "report.json").write_text(json.dumps(report, indent=2) + "\n")
+    print(f"Evidence: {evidence}")
+    return status
+
+if __name__ == "__main__":
+    sys.exit(main())

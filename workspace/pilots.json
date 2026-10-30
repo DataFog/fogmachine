@@ -1,0 +1,10 @@
+{
+  "core": {
+    "repository": "DataFog/datafog-core",
+    "ref": "f52cf72d18702a4f3d45167bdbb371c8fad6fc36"
+  },
+  "mcp": {
+    "repository": "DataFog/datafog-mcp",
+    "ref": "a8b77cc7fd570ca8b81e0c89dc26b48888f0012d"
+  }
+}
