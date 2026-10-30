@@ -12,7 +12,9 @@ docker build -t fogmachine:local .
 docker run --rm -e FOGMACHINE_IMAGE=fogmachine:local -v "$PWD:/workspace" fogmachine:local /opt/fogmachine/dev setup --profile core
 ```
 
-Use `mcp` for MCP, then run doctor and check in the same disposable container/workspace.
+The single command above demonstrates setup only. Use `docker create`/`docker exec`
+(or `scripts/pilot.sh`) to retain the disposable container through setup, doctor, and
+check. Use `mcp` for MCP. Do not mount host-built dependency directories.
 The hosted workflow demonstrates this without relying on a machine's installed tools.
 
 After successful image publication, take the digest from the publish job and use

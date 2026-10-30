@@ -9,8 +9,8 @@ import subprocess
 import sys
 import tomllib
 
-HOME = Path(__file__).resolve().parent
-PINS = json.loads((HOME / "toolchains.json").read_text())
+ENVIRONMENT_ROOT = Path(__file__).resolve().parent
+PINS = json.loads((ENVIRONMENT_ROOT / "toolchains.json").read_text())
 
 def commands(profile, operation):
     if operation == "setup":
@@ -81,7 +81,14 @@ def main():
     evidence.mkdir(parents=True)
     def git(*arguments):
         return subprocess.check_output(["git", *arguments], cwd=root, text=True).strip()
-    report = {"profile": profile, "operation": args.operation, "source_sha": git("rev-parse", "HEAD"),
+    versions = {}
+    for tool, command in {"python": ["python3", "--version"], "rust": ["rustc", "--version"], "node": ["node", "--version"], "uv": ["uv", "--version"], "maturin": ["maturin", "--version"], "wasm_bindgen": ["wasm-bindgen", "--version"]}.items():
+        try:
+            result = subprocess.run(command, capture_output=True, text=True)
+            versions[tool] = {"exit_code": result.returncode, "output": (result.stdout + result.stderr).strip()}
+        except OSError as error:
+            versions[tool] = {"error": str(error)}
+    report = {"tool_versions": versions, "profile": profile, "operation": args.operation, "source_sha": git("rev-parse", "HEAD"),
               "source_diff": git("diff", "--binary", "HEAD"), "git_status": git("status", "--porcelain"),
               "image": os.environ.get("FOGMACHINE_IMAGE", "unrecorded"), "requirements": PINS, "steps": []}
     status = 0
