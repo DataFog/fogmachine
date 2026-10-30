@@ -1,4 +1,4 @@
-# FogMachine
+# fogmachine
 
 Shared development environments for DataFog Core and MCP. Initial pilot; see CI for qualification status.
 
@@ -25,7 +25,7 @@ implicit side effect of doctor. See [architecture](docs/architecture.md) and
 
 Development images are published to `ghcr.io/datafog/fogmachine` only after Core
 and MCP pass on the candidate image. Consumers pin the resulting digest; no
-consumer should track `latest`. Private package access must be granted to consuming
-repos, and developers need a registry credential with read:packages. No credentials
+consumer should track `latest`. Package visibility is managed separately in GHCR. If the package is private, grant
+consuming repos access and authenticate developers with read:packages. No credentials
 are included in images. ARM64 qualification and native macOS/Windows lanes remain
 separate from this initial Linux AMD64 pilot.

@@ -10,7 +10,9 @@ USER ubuntu
 ENV PATH="/home/ubuntu/.cargo/bin:/home/ubuntu/.local/bin:${PATH}"
 RUN RUST_VERSION=$(python3 /opt/fogmachine/scripts/pin.py rust) && curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup.sh && sh /tmp/rustup.sh -y --default-toolchain "$RUST_VERSION" --profile minimal --component rustfmt --component clippy && rm /tmp/rustup.sh && rustup target add wasm32-unknown-unknown
 RUN UV_VERSION=$(python3 /opt/fogmachine/scripts/pin.py uv) && curl -LsSf "https://astral.sh/uv/$UV_VERSION/install.sh" -o /tmp/uv.sh && sh /tmp/uv.sh && rm /tmp/uv.sh
-RUN uv tool install "maturin==$(python3 /opt/fogmachine/scripts/pin.py maturin)" && cargo install wasm-bindgen-cli --version "$(python3 /opt/fogmachine/scripts/pin.py wasm_bindgen)" --locked
+RUN python3 -m venv /home/ubuntu/.fogmachine-python && uv pip install --python /home/ubuntu/.fogmachine-python/bin/python "maturin==$(python3 /opt/fogmachine/scripts/pin.py maturin)"
+ENV PATH="/home/ubuntu/.fogmachine-python/bin:${PATH}"
+RUN cargo install wasm-bindgen-cli --version "$(python3 /opt/fogmachine/scripts/pin.py wasm_bindgen)" --locked
 USER root
 RUN mkdir -p /opt/fogmachine/browser /workspace && chown -R ubuntu:ubuntu /opt/fogmachine/browser /workspace
 USER ubuntu

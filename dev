@@ -36,18 +36,18 @@ def validate_repo(root, profile):
     if profile == "core":
         toolchain = tomllib.loads((root / "rust-toolchain.toml").read_text())["toolchain"]
         if toolchain["channel"] != PINS["rust"]:
-            raise ValueError("Core Rust pin differs from FogMachine; select a compatible environment")
+            raise ValueError("Core Rust pin differs from fogmachine; select a compatible environment")
         if int((root / ".nvmrc").read_text().strip()) != PINS["node_major"]:
-            raise ValueError("Core Node pin differs from FogMachine")
+            raise ValueError("Core Node pin differs from fogmachine")
         packages = tomllib.loads((root / "Cargo.lock").read_text())["package"]
         versions = {p["version"] for p in packages if p["name"] == "wasm-bindgen"}
         if versions != {PINS["wasm_bindgen"]}:
-            raise ValueError("Core wasm-bindgen pin differs from FogMachine")
+            raise ValueError("Core wasm-bindgen pin differs from fogmachine")
         browser = json.loads((root / "bindings/wasm/package.json").read_text())
         if browser["devDependencies"]["playwright"] != PINS["playwright"]:
-            raise ValueError("Core Playwright pin differs from FogMachine")
+            raise ValueError("Core Playwright pin differs from fogmachine")
     elif (root / ".python-version").read_text().strip() != PINS["python"]:
-        raise ValueError("MCP Python pin differs from FogMachine")
+        raise ValueError("MCP Python pin differs from fogmachine")
 
 def doctor_commands():
     # Assertions make a mismatch fail instead of merely displaying versions.
@@ -57,6 +57,7 @@ def doctor_commands():
             ["bash", "-c", f"test \"$(uv --version | cut -d' ' -f2)\" = {PINS['uv']}"],
             ["bash", "-c", f"test \"$(maturin --version | cut -d' ' -f2)\" = {PINS['maturin']}"],
             ["bash", "-c", f"test \"$(wasm-bindgen --version | cut -d' ' -f2)\" = {PINS['wasm_bindgen']}"],
+            ["python3", "-m", "maturin", "--version"],
             ["node", "--input-type=module", "-e", "import {chromium} from '/opt/fogmachine/browser/node_modules/playwright/index.mjs'; const browser=await chromium.launch(); console.log(await browser.version()); await browser.close();"]]
 
 def main():
@@ -72,7 +73,7 @@ def main():
             raise ValueError(f"Unsupported profile: {profile}")
         validate_repo(root, profile)
     except (OSError, ValueError, KeyError) as error:
-        parser.exit(1, f"FogMachine configuration: {error}\n")
+        parser.exit(1, f"fogmachine configuration: {error}\n")
     steps = doctor_commands() if args.operation == "doctor" else commands(profile, args.operation)
     if args.dry_run:
         print(json.dumps(steps, indent=2))

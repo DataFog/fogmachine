@@ -1,5 +1,5 @@
 {
-  "name": "FogMachine development",
+  "name": "fogmachine development",
   "build": {"context": "..", "dockerfile": "../Dockerfile"},
   "remoteUser": "ubuntu",
   "workspaceFolder": "/workspace",
