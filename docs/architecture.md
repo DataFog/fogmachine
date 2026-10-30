@@ -1,6 +1,6 @@
 # Environment contract
 
-FogMachine owns the shared image, tool installation, pilot adapters, and environment
+fogmachine owns the shared image, tool installation, pilot adapters, and environment
 qualification. Product repositories own public behavior, tests, lockfiles, and their
 supported runtime/platform matrices. An environment update must not rewrite those
 contracts to get a green build.
