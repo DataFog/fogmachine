@@ -1,5 +1,10 @@
 # Environment contract
 
+The proposed cross-platform boundary is recorded in
+[ADR 0001: Container verification and native platform qualification](adr/0001-container-verification-and-native-platform-qualification.md).
+The ADR separates the decision from shared workflow implementation and consumer adoption;
+the current Linux AMD64 pilot's qualification remains unchanged.
+
 FogMachine owns the shared image, tool installation, pilot adapters, and environment
 qualification. Product repositories own public behavior, tests, lockfiles, and their
 supported runtime/platform matrices. An environment update must not rewrite those
